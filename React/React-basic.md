@@ -8,6 +8,8 @@ React 공부. 기본 내용 정리.
 
 - [왜 React가 개발 됐을까](#왜-React가-개발-됐을까)
 - [JSX](#JSX)
+- [props](#props)
+- [useState](#usetState)
 
 # 왜 React가 개발 됐을까
 
@@ -140,3 +142,156 @@ export default App;
 JSX 내부의 주석은 {/\* 이런 형태로 \*/} 작성.
 
 열리는 태그 내부에서는 // 이런 형태로도 주석 작성이 가능.
+
+# props
+
+## 어떠한 값을 컴포넌트에게 전달해줘야 할 때 props를 사용
+
+### props 의 기본 사용법
+
+예시) App 컴포넌트에서 Hello 컴포넌트를 사용 할 때 name 이라는 값을 전달할 때
+
+```js
+//App.js
+import React from "react";
+import Hello from "./Hello";
+
+function App() {
+  return <Hello name="react" />;
+}
+
+export default App;
+
+// Hello.js
+import React from "react";
+
+function Hello(props) {
+  return <div>안녕하세요 {props.name}</div>;
+}
+
+export default Hello;
+```
+
+### defaultProps 로 기본값 설정
+
+컴포넌트에 props 를 지정하지 않았을 때 기본적으로 사용 할 값을 설정하고 싶다면 컴포넌트에 defaultProps 라는 값을 설정.
+
+```js
+import React from "react";
+
+function Hello({ color, name }) {
+  return <div style={{ color }}>안녕하세요 {name}</div>;
+}
+
+Hello.defaultProps = {
+  name: "이름없음",
+};
+
+export default Hello;
+```
+
+### props.children
+
+컴포넌트 태그 사이에 넣은 값을 조회하고 싶을 땐, props.children 을 조회
+
+```js
+// Wrapper.js
+import React from "react";
+
+function Wrapper({ children }) {
+  const style = {
+    border: "2px solid black",
+    padding: "16px",
+  };
+  return <div style={style}>{children}</div>;
+}
+
+export default Wrapper;
+
+// App.js
+import React from "react";
+import Hello from "./Hello";
+import Wrapper from "./Wrapper";
+
+function App() {
+  return (
+    <Wrapper>
+      <Hello name="react" color="red" />
+      <Hello color="pink" />
+    </Wrapper>
+  );
+}
+
+export default App;
+```
+
+### props 값 설정을 생략하면 ={true}
+
+```js
+import React from "react";
+import Hello from "./Hello";
+import Wrapper from "./Wrapper";
+
+function App() {
+  return (
+    <Wrapper>
+      <Hello name="react" color="red" isSpecial />
+      <Hello color="pink" />
+    </Wrapper>
+  );
+}
+
+export default App;
+```
+
+이렇게 isSpecial 이름만 넣어주면 isSpecial={true} 와 동일한 의미.
+
+# useState
+
+## 함수형 컴포넌트에서 상태를 관리
+
+리액트 16.8 에서 Hooks 라는 기능이 도입되면서 함수형 컴포넌트에서도 상태를 관리할 수 있게 됨.
+
+컴포넌트에서 동적인 값을 상태(state)라고 부름.
+
+리액트에 useState 라는 함수로 컴포넌트에서 상태를 관리.
+
+```js
+import React, { useState } from "react";
+
+const [number, setNumber] = useState(0);
+```
+
+useState 를 사용 할 때에는 상태의 기본값을 파라미터로 넣어서 호출.
+
+배열 형태로 반환. 첫번째 원소는 현재 상태, 두번째 원소는 Setter 함수.
+
+```js
+const onIncrease = () => {
+  setNumber(number + 1);
+};
+
+const onDecrease = () => {
+  setNumber(number - 1);
+};
+```
+
+Setter 함수는 파라미터로 전달 받은 값을 최신 상태(여기서는 number)로 설정.
+
+### 함수형 업데이트
+
+지금은 Setter 함수를 사용 할 때, 업데이트 하고 싶은 새로운 값을 파라미터 넣어주고 있음.
+
+기존 값을 어떻게 업데이트 할 지에 대한 함수를 등록하는 방식으로도 값을 업데이트 할 수 있음.
+
+```js
+const onIncrease = () => {
+  setNumber((prevNumber) => prevNumber + 1);
+};
+
+const onDecrease = () => {
+  setNumber((prevNumber) => prevNumber - 1);
+};
+```
+
+함수형 업데이트는 주로 나중에 컴포넌트를 최적화를 하게 될 때 사용하게 됨.
