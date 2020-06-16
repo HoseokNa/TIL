@@ -295,3 +295,75 @@ const onDecrease = () => {
 ```
 
 함수형 업데이트는 주로 나중에 컴포넌트를 최적화를 하게 될 때 사용하게 됨.
+
+### 여러개의 input 상태 관리
+
+단순히 useState 를 여러번 사용하고 onChange 도 여러개 만들어서 구현 할 수 있음. 좋은 방법 아님.
+
+input 에 name 을 설정하고 이벤트가 발생했을 때 이 값을 참조.
+
+useState 에서는 문자열이 아니라 객체 형태의 상태를 관리.
+
+```js
+import React, { useState } from "react";
+
+function InputSample() {
+  const [inputs, setInputs] = useState({
+    name: "",
+    nickname: "",
+  });
+
+  const { name, nickname } = inputs; // 비구조화 할당을 통해 값 추출
+
+  const onChange = (e) => {
+    const { value, name } = e.target; // 우선 e.target 에서 name 과 value 를 추출
+    setInputs({
+      ...inputs, // 기존의 input 객체를 복사한 뒤
+      [name]: value, // name 키를 가진 값을 value 로 설정
+    });
+  };
+
+  const onReset = () => {
+    setInputs({
+      name: "",
+      nickname: "",
+    });
+  };
+
+  return (
+    <div>
+      <input name="name" placeholder="이름" onChange={onChange} value={name} />
+      <input
+        name="nickname"
+        placeholder="닉네임"
+        onChange={onChange}
+        value={nickname}
+      />
+      <button onClick={onReset}>초기화</button>
+      <div>
+        <b>값: </b>
+        {name} ({nickname})
+      </div>
+    </div>
+  );
+}
+
+export default InputSample;
+```
+
+### 불변성 지키기
+
+불변성을 지켜주어야만 리액트 컴포넌트에서 상태가 업데이트가 됐음을 감지 할 수 있고 이에 따라 필요한 리렌더링이 진행.
+
+리액트에서 객체를 업데이트하게 될 때에는 기존 객체를 직접 수정하면 안되고, 새로운 객체를 만들어서, 새 객체에 변화를 주어야함.
+
+```js
+// X
+inputs[name] = value;
+
+// Spread 문법 사용으로 기존 객체 복사
+setInputs({
+  ...inputs,
+  [name]: value,
+});
+```
