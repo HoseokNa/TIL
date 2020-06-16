@@ -10,6 +10,7 @@ React 공부. 기본 내용 정리.
 - [JSX](#JSX)
 - [props](#props)
 - [useState](#usetState)
+- [useRef](#useRef)
 
 # 왜 React가 개발 됐을까
 
@@ -366,4 +367,50 @@ setInputs({
   ...inputs,
   [name]: value,
 });
+```
+
+# useRef
+
+## useRef 로 특정 DOM 선택하기
+
+리액트에서 DOM을 직접 선택할 때 ref 사용.
+
+함수형 컴포넌트에서 useRef 라는 Hook 함수를 사용.
+
+useRef() 를 사용하여 Ref 객체를 만듬. 그리고 이 객체를 우리가 선택하고 싶은 DOM 에 ref 값으로 설정. 그러면, Ref 객체의 .current 값은 우리가 원하는 DOM 을 가르킴.
+
+```js
+import React, { useState, useRef } from "react";
+
+function InputSample() {
+  const [inputs, setInputs] = useState({
+    name: "",
+    nickname: "",
+  });
+  const nameInput = useRef();
+
+  const { name, nickname } = inputs; // 비구조화 할당을 통해 값 추출
+
+  const onReset = () => {
+    setInputs({
+      name: "",
+      nickname: "",
+    });
+    nameInput.current.focus();
+  };
+
+  return (
+    <div>
+      <input
+        name="name"
+        placeholder="이름"
+        onChange={onChange}
+        value={name}
+        ref={nameInput}
+      />
+    </div>
+  );
+}
+
+export default InputSample;
 ```
