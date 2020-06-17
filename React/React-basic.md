@@ -11,6 +11,12 @@ React 공부. 기본 내용 정리.
 - [props](#props)
 - [useState](#usetState)
 - [useRef](#useRef)
+- [배열 렌더링](#배열-렌더링)
+- [배열 수정](#배열-수정)
+- [useEffect](#useEffect)
+- [useMemo](#useMemo)
+- [useCallback](#useCallback)
+- [React.memo](#React.memo)
 
 # 왜 React가 개발 됐을까
 
@@ -371,7 +377,9 @@ setInputs({
 
 # useRef
 
-## useRef 로 특정 DOM 선택하기
+## 1. useRef 로 특정 DOM 선택하기
+
+## 2. 컴포넌트 안에서 조회 및 수정 할 수 있는 변수를 관리
 
 리액트에서 DOM을 직접 선택할 때 ref 사용.
 
@@ -414,3 +422,442 @@ function InputSample() {
 
 export default InputSample;
 ```
+
+useRef 로 관리하는 변수는 값이 바뀐다고 해서 컴포넌트가 리렌더링되지 않음.
+
+다음과 같은 값을 관리 할 수 있음.
+
+- setTimeout, setInterval 을 통해서 만들어진 id.
+- 외부 라이브러리를 사용하여 생성된 인스턴스.
+- scroll 위치.
+
+```js
+import React, { useRef } from "react";
+import UserList from "./UserList";
+
+function App() {
+  const users = [
+    {
+      id: 1,
+      username: "velopert",
+      email: "public.velopert@gmail.com",
+    },
+  ];
+
+  const nextId = useRef(4);
+  const onCreate = () => {
+    // 나중에 구현 할 배열에 항목 추가하는 로직
+    // ...
+
+    nextId.current += 1;
+  };
+  return <UserList users={users} />;
+}
+
+export default App;
+```
+
+useRef() 를 사용 할 때 파라미터를 넣어주면, 이 값이 .current 값의 기본값이 됨.
+
+이 값을 수정 할때에는 .current 값을 수정. 조회 할 때에는 .current 를 조회.
+
+# 배열 렌더링
+
+## key props를 설정해서 렌더링 하기
+
+map 사용하기
+
+각 고유 원소에 key 가 있어야만 배열이 업데이트 될 때 효율적으로 렌더링 됨.
+
+원소 변경 시 key가 없을 경우 순차적으로 다 변경하여 리렌더링. key가 있을 경우 해당 위치에서만 리렌더링
+
+```js
+import React from "react";
+
+function User({ user }) {
+  return (
+    <div>
+      <b>{user.username}</b> <span>({user.email})</span>
+    </div>
+  );
+}
+
+function UserList() {
+  const users = [
+    {
+      id: 1,
+      username: "velopert",
+      email: "public.velopert@gmail.com",
+    },
+    {
+      id: 2,
+      username: "tester",
+      email: "tester@example.com",
+    },
+    {
+      id: 3,
+      username: "liz",
+      email: "liz@example.com",
+    },
+  ];
+
+  return (
+    <div>
+      {users.map((user) => (
+        <User user={user} key={user.id} />
+      ))}
+    </div>
+  );
+}
+
+export default UserList;
+```
+
+# 배열 수정
+
+## spread 연산, concat, filter, map 사용하기
+
+불변성을 지켜주기.
+
+push, splice, sort 등을 사용하려면 기존의 배열을 복사하고 사용하자.
+
+```js
+// App.js
+import React, { useRef, useState } from "react";
+import UserList from "./UserList";
+import CreateUser from "./CreateUser";
+
+function App() {
+  const [inputs, setInputs] = useState({
+    username: "",
+    email: "",
+  });
+  const { username, email } = inputs;
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setInputs({
+      ...inputs,
+      [name]: value,
+    });
+  };
+  const [users, setUsers] = useState([
+    {
+      id: 1,
+      username: "velopert",
+      email: "public.velopert@gmail.com",
+      active: true,
+    },
+    {
+      id: 2,
+      username: "tester",
+      email: "tester@example.com",
+      active: false,
+    },
+    {
+      id: 3,
+      username: "liz",
+      email: "liz@example.com",
+      active: false,
+    },
+  ]);
+
+  const nextId = useRef(4);
+  const onCreate = () => {
+    const user = {
+      id: nextId.current,
+      username,
+      email,
+    };
+    setUsers(users.concat(user));
+
+    setInputs({
+      username: "",
+      email: "",
+    });
+    nextId.current += 1;
+  };
+
+  const onRemove = (id) => {
+    // user.id 가 파라미터로 일치하지 않는 원소만 추출해서 새로운 배열을 만듬
+    // = user.id 가 id 인 것을 제거함
+    setUsers(users.filter((user) => user.id !== id));
+  };
+  const onToggle = (id) => {
+    setUsers(
+      users.map((user) =>
+        user.id === id ? { ...user, active: !user.active } : user
+      )
+    );
+  };
+  return (
+    <>
+      <CreateUser
+        username={username}
+        email={email}
+        onChange={onChange}
+        onCreate={onCreate}
+      />
+      <UserList users={users} onRemove={onRemove} onToggle={onToggle} />
+    </>
+  );
+}
+
+export default App;
+
+// UserList.js
+import React from "react";
+
+function User({ user, onRemove, onToggle }) {
+  return (
+    <div>
+      <b
+        style={{
+          cursor: "pointer",
+          color: user.active ? "green" : "black",
+        }}
+        onClick={() => onToggle(user.id)}
+      >
+        {user.username}
+      </b>
+      &nbsp;
+      <span>({user.email})</span>
+      <button onClick={() => onRemove(user.id)}>삭제</button>
+    </div>
+  );
+}
+
+function UserList({ users, onRemove, onToggle }) {
+  return (
+    <div>
+      {users.map((user) => (
+        <User
+          user={user}
+          key={user.id}
+          onRemove={onRemove}
+          onToggle={onToggle}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default UserList;
+```
+
+# useEffect
+
+## 리액트에게 컴포넌트가 렌더링 이후에 어떤 일을 수행해야하는지 말해줌.
+
+```js
+function useEffect(effect: EffectCallback, inputs?: InputIdentityList)
+```
+
+render가 발생할 때 마다(componentDidMount: 초기, componentDUpdate: 매번) effect가 실행. 두 번째 파라미터인 inputs를 통해 특정한 상태가 update 되었을 때만 effect가 실행되도록 설정(의존값).
+
+useEffect Hook을 사용하여 컴포넌트가 마운트 됐을 때 (처음 나타났을 때), 언마운트 됐을 때 (사라질 때), 그리고 업데이트 될 때 (특정 props가 바뀔 때) 특정 작업을 처리할 수 있음.
+
+### 마운트 / 언마운트
+
+```js
+useEffect(() => {
+  console.log("컴포넌트가 화면에 나타남");
+  return () => {
+    console.log("컴포넌트가 화면에서 사라짐");
+  };
+}, []);
+```
+
+두 번째 파라미터 배열(deps)을 비워두면 컴포넌트가 처음 나타날 때에만 등록한 함수 호출.
+
+useEffect 에서는 함수를 반환 할 수 있는데 이를 cleanup 함수라고 함. deps 가 비어있는 경우에는 컴포넌트가 사라질 때 cleanup 함수가 호출.
+
+마운트시 주로 하는 작업
+
+- props 로 받은 값을 컴포넌트의 로컬 상태로 설정.
+- 외부 API 요청 (REST API 등).
+- 라이브러리 사용 (D3, Video.js 등...).
+- setInterval 을 통한 반복작업 혹은 setTimeout 을 통한 작업 예약.
+
+언마운트 시에 하는 작업
+
+- setInterval, setTimeout 을 사용하여 등록한 작업들 clear 하기 (clearInterval, clearTimeout).
+- 라이브러리 인스턴스 제거.
+
+### deps 에 특정 값 넣기
+
+deps 에 특정 값을 넣게 된다면,
+
+- 컴포넌트가 처음 마운트 될 때에도 호출이 되고, 지정한 값이 바뀔 때에도 호출.
+- 언마운트시에도 호출이되고, 값이 바뀌기 직전에도 호출.
+
+```js
+useEffect(() => {
+  console.log("user 값이 설정됨");
+  console.log(user);
+  return () => {
+    console.log("user 가 바뀌기 전..");
+    console.log(user);
+  };
+}, [user]);
+```
+
+**useEffect 안에서 사용하는 상태나, props 가 있다면, useEffect 의 deps 에 넣어야 함.**
+
+그렇지 않으면 useEffect 에 등록한 함수가 실행 될 때 최신 props / 상태를 가르키지 않음.
+
+### deps 파라미터를 생략하기
+
+deps 파라미터를 생략한다면, 컴포넌트가 리렌더링 될 때마다 호출.
+
+```js
+useEffect(() => {
+  console.log(user);
+});
+```
+
+참고로 리액트 컴포넌트는 기본적으로 부모컴포넌트가 리렌더링되면 자식 컴포넌트 또한 리렌더링이 됨.(바뀐 내용이 없어도)
+
+물론, 실제 DOM 에 변화가 반영되는 것은 바뀐 내용이 있는 컴포넌트에만 해당.
+
+# useMemo
+
+## 성능 최적화를 위하여 연산된 값을 재사용하는 Hook
+
+첫번째 파라미터에는 어떻게 연산할지 정의하는 함수.
+
+두번째 파라미터에는 deps 배열. 이 배열 안에 넣은 내용이 바뀌면, 우리가 등록한 함수를 호출해서 값을 연산. 바뀌지 않았다면 이전에 연산한 값을 재사용.
+
+```js
+function countActiveUsers(users) {
+  console.log("활성 사용자 수를 세는중...");
+  return users.filter((user) => user.active).length;
+}
+
+const count = useMemo(() => countActiveUsers(users), [users]);
+```
+
+# useCallback
+
+## 특정 함수를 새로 만들지 않고 재사용하고 싶을때 사용
+
+최적화 작업을 위해서 필수적.
+
+컴포넌트에서 props 가 바뀌지 않았으면 Virtual DOM 에 새로 렌더링하는 것 조차 하지 않고 컴포넌트의 결과물을 재사용 가능.
+
+**함수 안에서 사용하는 상태 혹은 props 가 있다면 꼭, deps 배열안에 포함시켜야 함.**
+
+그렇지 않으면 함수 내에서 해당 값들을 참조할때 가장 최신 값을 참조 할 것이라고 보장 못함. props 로 받아온 함수가 있다면, 이 또한 deps 에 넣어야 함.
+
+```js
+const onChange = useCallback(
+  (e) => {
+    const { name, value } = e.target;
+    setInputs({
+      ...inputs,
+      [name]: value,
+    });
+  },
+  [inputs]
+);
+const onCreate = useCallback(() => {
+  const user = {
+    id: nextId.current,
+    username,
+    email,
+  };
+  setUsers(users.concat(user));
+
+  setInputs({
+    username: "",
+    email: "",
+  });
+  nextId.current += 1;
+}, [users, username, email]);
+
+const onRemove = useCallback(
+  (id) => {
+    // user.id 가 파라미터로 일치하지 않는 원소만 추출해서 새로운 배열을 만듬
+    // = user.id 가 id 인 것을 제거함
+    setUsers(users.filter((user) => user.id !== id));
+  },
+  [users]
+);
+const onToggle = useCallback(
+  (id) => {
+    setUsers(
+      users.map((user) =>
+        user.id === id ? { ...user, active: !user.active } : user
+      )
+    );
+  },
+  [users]
+);
+```
+
+사실 useCallback 을 사용 함으로써, 바로 이뤄낼수 있는 눈에 띄는 최적화는 없음. 컴포넌트 렌더링 최적화 작업을 해주어야만 성능이 최적화됨.
+
+# React.memo
+
+## 컴포넌트의 props 가 바뀌지 않았다면, 리렌더링을 방지하는 함수
+
+Props가 바뀌었을때만 리렌더링. 렌더링된 결과물을 재사용.
+
+```js
+// CreateUser.js
+export default React.memo(CreateUser);
+
+// UserList.js
+export default React.memo(UserList);
+```
+
+하지만 기존 예제에서 User 중 하나라도 수정하면 모든 User 들이 리렌더링되고, CreateUser 도 리렌더링 됨.
+
+users 배열이 바뀔때마다 onCreate, onToggle,onRemove이 새로 만들어지기 때문.(useCallback에서 deps가 users)
+
+useState를 함수형 업데이트로 수정하고 기존 useCallback deps의 users를 삭제하면 해결.
+
+```js
+const onChange = useCallback((e) => {
+  const { name, value } = e.target;
+  setInputs((inputs) => ({
+    ...inputs,
+    [name]: value,
+  }));
+}, []);
+
+const onCreate = useCallback(() => {
+  const user = {
+    id: nextId.current,
+    username,
+    email,
+  };
+  setUsers((users) => users.concat(user));
+
+  setInputs({
+    username: "",
+    email: "",
+  });
+  nextId.current += 1;
+}, [username, email]);
+
+const onRemove = useCallback((id) => {
+  // user.id 가 파라미터로 일치하지 않는 원소만 추출해서 새로운 배열을 만듬
+  // = user.id 가 id 인 것을 제거함
+  setUsers((users) => users.filter((user) => user.id !== id));
+}, []);
+const onToggle = useCallback((id) => {
+  setUsers((users) =>
+    users.map((user) =>
+      user.id === id ? { ...user, active: !user.active } : user
+    )
+  );
+}, []);
+```
+
+useCallback, useMemo, React.memo 는 컴포넌트의 성능을 실제로 개선할수있는 상황에서만 사용.
+
+b 와 button 에 onClick 으로 설정해준 함수들은, useCallback 으로 재사용한다고 해서 리렌더링을 막을 수 없음.
+
+렌더링 최적화 하지 않을 컴포넌트에 React.memo 를 사용하는것은, 불필요한 props 비교만 하는 것.
+
+React.memo 에서 두번째 파라미터에 propsAreEqual 이라는 함수를 사용하여 특정 값들만 비교를 하는 것도 가능. 하지만, 이걸 잘못사용한다면 오히려 의도치 않은 버그들이 발생.
