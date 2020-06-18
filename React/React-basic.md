@@ -17,6 +17,12 @@ React 공부. 기본 내용 정리.
 - [useMemo](#useMemo)
 - [useCallback](#useCallback)
 - [React.memo](#React.memo)
+- [useReducer](#useReducer)
+- [커스텀 Hook](#커스텀-Hook)
+- [Context API](#Context-API)
+- [Immer](#immer)
+- [클래스형 컴포넌트](#클래스형-컴포넌트)
+- [LifeCycle Method](#LifeCycle-Method)
 
 # 왜 React가 개발 됐을까
 
@@ -861,3 +867,626 @@ b 와 button 에 onClick 으로 설정해준 함수들은, useCallback 으로 �
 렌더링 최적화 하지 않을 컴포넌트에 React.memo 를 사용하는것은, 불필요한 props 비교만 하는 것.
 
 React.memo 에서 두번째 파라미터에 propsAreEqual 이라는 함수를 사용하여 특정 값들만 비교를 하는 것도 가능. 하지만, 이걸 잘못사용한다면 오히려 의도치 않은 버그들이 발생.
+
+# useReducer
+
+## 컴포넌트의 상태 업데이트 로직을 컴포넌트에서 분리시킬 수 있는 Hook
+
+useState 대신 useReducer를 사용하여 컴포넌트의 상태 업데이트 가능.
+
+컴포넌트 바깥에 작성 할 수도 있고, 심지어 다른 파일에 작성 후 불러와서 사용 할 수 있음.
+
+```js
+const [state, dispatch] = useReducer(reducer, initialState);
+```
+
+state 는 우리가 앞으로 컴포넌트에서 사용 할 수 있는 상태.
+
+distpatch 는 액션을 발생시키는 함수.
+
+첫번째 파라미터는 reducer 함수, 두번째 파라미터는 초기 상태.
+
+reducer 는 현재 상태와 액션 객체를 파라미터로 받아와서 새로운 상태를 반환해주는 함수.
+
+```js
+function reducer(state, action) {
+  // 새로운 상태를 만드는 로직
+  // const nextState = ...
+  return nextState;
+}
+```
+
+action 은 업데이트를 위한 정보. action 객체의 형태는 자유.
+
+Counter 컴포넌트의 useState를 useReducer로 구현한 예제.
+
+```js
+// useState 사용시
+
+function Counter() {
+  const [number, setNumber] = useState(0);
+
+  const onIncrease = () => {
+    setNumber((prevNumber) => prevNumber + 1);
+  };
+
+  const onDecrease = () => {
+    setNumber((prevNumber) => prevNumber - 1);
+  };
+
+  // ...
+}
+
+// 변경 후
+function reducer(state, action) {
+  switch (action.type) {
+    case "INCREMENT":
+      return state + 1;
+    case "DECREMENT":
+      return state - 1;
+    default:
+      return state;
+  }
+}
+
+function Counter() {
+  const [number, dispatch] = useReducer(reducer, 0);
+
+  const onIncrease = () => {
+    dispatch({ type: "INCREMENT" });
+  };
+
+  const onDecrease = () => {
+    dispatch({ type: "DECREMENT" });
+  };
+
+  //...
+}
+```
+
+### useReducer vs useState 뭐가 좋나?
+
+정해진 답은 없음.
+
+컴포넌트에서 관리하는 값이 딱 하나고, 그 값이 단순한 숫자, 문자열 또는 boolean 값이라면 확실히 useState 로 관리하는게 편할 듯.
+
+만약에 컴포넌트에서 관리하는 값이 여러개가 되어서 상태의 구조가 복잡해진다면 useReducer로 관리하는 것이 편할 수 있음.
+
+setter 를 한 함수에서 여러번 사용해야 하는 일이 발생한다면, 그 때부터 useReducer 를 쓸까? 에 대한 고민을 시작한다고 함.
+
+자주 사용해보시고 맘에드는 방식을 선택하자.
+
+# 커스텀 Hook
+
+## 반복되는 로직을 쉽게 재사용 가능.
+
+커스텀 hook을 만들면 컴포넌트 로직을 재사용 가능한 함수로 뽑아낼 수 있음.
+
+커스텀 Hooks 를 만들 때에는 보통 use 라는 키워드로 시작하는 파일을 만들고 그 안에 함수를 작성.
+
+그 안에서 useState, useEffect, useReducer, useCallback 등 Hooks 를 사용하여 원하는 기능을 구현.
+
+컴포넌트에서 사용하고 싶은 값들을 반환.
+
+```js
+// useInputs.js
+
+import { useState, useCallback } from "react";
+
+function useInputs(initialForm) {
+  const [form, setForm] = useState(initialForm);
+  // change
+  const onChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setForm((form) => ({ ...form, [name]: value }));
+  }, []);
+  const reset = useCallback(() => setForm(initialForm), [initialForm]);
+  return [form, onChange, reset];
+}
+
+export default useInputs;
+```
+
+# Context API
+
+## 프로젝트 안에서 전역적으로 사용 할 수 있는 값을 관리
+
+특정 함수를 3~4개 이상의 컴포넌트를 거쳐서 전달을 해야 하는 일은 번거로움.
+
+리액트의 Context API 를 사용하면, 프로젝트 안에서 전역적으로 사용 할 수 있는 값을 관리 가능.
+
+이 값은 함수일수도 있고, 어떤 외부 라이브러리 인스턴스일수도 있고 심지어 DOM 일 수도 있음.
+
+React.createContext()로 생성
+
+```js
+const UserDispatch = React.createContext(null);
+```
+
+파라미터에는 Context 의 기본값을 설정.
+
+Context 안에 Provider 컴포넌트로 Context의 값을 정할 수 있음.
+
+```js
+// Context 안에 값을 dispatch로 설정
+<UserDispatch.Provider value={dispatch}>...</UserDispatch.Provider>
+```
+
+Provider 에 의하여 감싸진 컴포넌트 중 어디서든지 우리가 Context 의 값을 바로 조회하여 사용 가능.
+
+조회시에는 useContext 사용.
+
+```js
+// App.js
+
+// ...
+
+export const UserDispatch = React.createContext(null);
+
+function App() {
+  // ...
+
+  const [state, dispatch] = useReducer(reducer, initialState);
+
+  // ...
+  return (
+    <UserDispatch.Provider value={dispatch}>
+      <CreateUser
+        username={username}
+        email={email}
+        onChange={onChange}
+        onCreate={onCreate}
+      />
+      <UserList users={users} />
+      <div>활성사용자 수 : {count}</div>
+    </UserDispatch.Provider>
+  );
+}
+
+// User.js
+import React, { useContext } from "react";
+import { UserDispatch } from "./App";
+
+const User = React.memo(function User({ user }) {
+  const dispatch = useContext(UserDispatch);
+
+  return (
+    <div>
+      <b
+        style={{
+          cursor: "pointer",
+          color: user.active ? "green" : "black",
+        }}
+        onClick={() => {
+          dispatch({ type: "TOGGLE_USER", id: user.id });
+        }}
+      >
+        {user.username}
+      </b>
+      &nbsp;
+      <span>({user.email})</span>
+      <button
+        onClick={() => {
+          dispatch({ type: "REMOVE_USER", id: user.id });
+        }}
+      >
+        삭제
+      </button>
+    </div>
+  );
+});
+
+function UserList({ users }) {
+  return (
+    <div>
+      {users.map((user) => (
+        <User user={user} key={user.id} />
+      ))}
+    </div>
+  );
+}
+
+export default React.memo(UserList);
+```
+
+컴포넌트에게 함수를 전달해줘야 할 때 Context API로 dispatch를 전역적으로 사용할 수 있어서 코드가 훨씬 깔끔해 질 수 있음. (useState와 useReducer의 차이)
+
+# Immer
+
+## 상태를 업데이트 할 때 불변성을 관리 해주는 라이브러리
+
+데이터의 구조가 복잡해지면 불변성을 지켜주면서 업데이트를 하려면 코드가 복잡해짐.
+
+immer 라이브러리를 사용하면 불변성을 신경쓰지 않고 업데이트가 가능.
+
+### 사용 법
+
+immer 설치
+
+```js
+$ yarn add immer
+```
+
+produce import
+
+```js
+import produce from "immer";
+```
+
+produce 함수를 사용 할 때에는 첫번째 파라미터에는 수정하고 싶은 상태.
+
+두번째 파라미터에는 어떻게 업데이트하고 싶을지 정의하는 함수. (불변성에 대해서 신경 안써도 됨)
+
+```js
+const state = {
+  number: 1,
+  dontChangeMe: 2,
+};
+
+const nextState = produce(state, (draft) => {
+  draft.number += 1;
+});
+
+console.log(nextState);
+// { number: 2, dontChangeMe: 2 }
+```
+
+immer 를 사용해서 간단해지는 업데이트가 있고, 오히려 코드가 길어지는 업데이트가 있음
+
+새 항목을 추가하거나 제거 할 때는 Immer 를 사용하는 것 보다 concat 과 filter 를 사용하는것이 더 코드가 짧고 편함.
+
+### Immer와 함수형 업데이트
+
+produce 함수에 첫번째 파라미터를 생략하고 바로 업데이트 함수를 넣어주게 된다면, 반환 값은 새로운 상태가 아닌 상태를 업데이트 해주는 함수가 됨.
+
+```js
+const todo = {
+  text: "Hello",
+  done: false,
+};
+
+const updater = produce((draft) => {
+  draft.done = !draft.done;
+});
+
+const nextTodo = updater(todo);
+
+console.log(nextTodo);
+// { text: 'Hello', done: true }
+```
+
+useState의 업데이트 함수를 사용할 때 다음과 같이 구현 가능.
+
+```js
+const [todo, setTodo] = useState({
+  text: "Hello",
+  done: false,
+});
+
+const onClick = useCallback(() => {
+  setTodo(
+    produce((draft) => {
+      draft.done = !draft.done;
+    })
+  );
+}, []);
+```
+
+편한 라이브러리인것은 사실이지만, 성능적으로는 Immer 를 사용하지 않은 코드가 조금 더 빠름. (데이터가 적으면 거의 차이가 없음)
+
+Immer 를 사용한다고 해도, 필요한곳에만 쓰고, 간단히 처리 될 수 있는 곳에서는 그냥 일반 JavaScript 로 구현하자.
+
+# 클래스형 컴포넌트
+
+클래스형 컴포넌트 작성법
+
+```js
+import React, { Component } from "react";
+
+class Hello extends Component {
+  // static을 사용해서 defaultProps 설정 가능
+  // static defaultProps = {
+  //   name: '이름없음'
+  // };
+
+  render() {
+    const { color, name, isSpecial } = this.props;
+    return (
+      <div style={{ color }}>
+        {isSpecial && <b>*</b>}
+        안녕하세요 {name}
+      </div>
+    );
+  }
+}
+
+Hello.defaultProps = {
+  name: "이름없음",
+};
+
+export default Hello;
+```
+
+render() 메서드가 꼭 있어야 함. 이 메서드에서 렌더링하고 싶은 JSX 를 반환.
+
+this.props로 props 조회.
+
+### 커스텀 메서드
+
+```js
+import React, { Component } from "react";
+
+class Counter extends Component {
+  handleIncrease() {
+    console.log("increase");
+    console.log(this);
+  }
+
+  handleDecrease() {
+    console.log("decrease");
+  }
+
+  render() {
+    return (
+      <div>
+        <h1>0</h1>
+        <button onClick={this.handleIncrease}>+1</button>
+        <button onClick={this.handleDecrease}>-1</button>
+      </div>
+    );
+  }
+}
+
+export default Counter;
+```
+
+일반적으로 클래스 안에 커스텀 메서드를 선언하여 사용.
+
+handleIncrease()의 this를 출력하면 undefined 출력.
+
+메서드들을 각 button 들의 이벤트로 등록하게 되는 과정에서 각 메서드와 컴포넌트 인스턴스의 관계가 끊겨기 때문.
+
+해결 방법 3가지.
+
+1. 생성자 메서드 constructor 에서 bind
+
+```js
+class Counter extends Component {
+  constructor(props) {
+    super(props);
+    this.handleIncrease = this.handleIncrease.bind(this);
+    this.handleDecrease = this.handleDecrease.bind(this);
+  }
+
+  // ...
+}
+```
+
+2.  커스텀 매서드 선언 시 화살표 문법 사용. (보통 CRA 로 만든 프로젝트에서는 커스텀 메서드를 만들 때 이 방법을 많이 사용)
+
+```js
+class Counter extends Component {
+  handleIncrease = () => {
+    console.log("increase");
+    console.log(this);
+  };
+
+  handleDecrease = () => {
+    console.log("decrease");
+  };
+
+  // ...
+}
+```
+
+3. onClick 에서 새로운 함수를 만들어서 전달. (비추. 렌더링 할 때마다 새로 만들어지기 때문에 최적화 어려움)
+
+```js
+// ...
+
+return (
+  <div>
+    <h1>0</h1>
+    <button onClick={() => this.handleIncrease()}>+1</button>
+    <button onClick={() => this.handleDecrease()}>-1</button>
+  </div>
+);
+```
+
+### 상태 선언하기
+
+상태 관리시 state 사용.
+
+constructor 내부에서 this.state 를 설정.
+
+state 는 무조건 객체형태.
+
+this.state로 조회.
+
+```js
+import React, { Component } from "react";
+
+class Counter extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      counter: 0,
+    };
+  }
+
+  //...
+}
+```
+
+화살표 함수 문법을 사용하여 메서드를 작성 할 수 있게 해줬던 class-properties 문법이 적용되어 있다면 굳이 constructor 를 작성하지 않고도 다음과 같이 state 를 설정 가능.
+
+```js
+class Counter extends Component {
+  state = {
+    counter: 0,
+  };
+  // ...
+}
+```
+
+### 상태 업데이트하기
+
+this.setState 함수를 사용.
+
+```js
+import React, { Component } from "react";
+
+class Counter extends Component {
+  state = {
+    counter: 0,
+  };
+  handleIncrease = () => {
+    this.setState({
+      counter: this.state.counter + 1,
+    });
+  };
+
+  handleDecrease = () => {
+    this.setState({
+      counter: this.state.counter - 1,
+    });
+  };
+
+  render() {
+    return (
+      <div>
+        <h1>{this.state.counter}</h1>
+        <button onClick={this.handleIncrease}>+1</button>
+        <button onClick={this.handleDecrease}>-1</button>
+      </div>
+    );
+  }
+}
+
+export default Counter;
+```
+
+### setState 의 함수형 업데이트
+
+useState 에서 함수형 업데이트를 할 수 있었던 것 처럼 setState 도 마찬가지로 함수형 업데이트 가능.
+
+함수형 업데이트는 보통 한 함수에서 setState 를 여러번에 걸쳐서 해야 되는 경우에 사용하면 유용.
+
+아래 예제는 실제로 2가 더해지지 않음.
+
+```js
+handleIncrease = () => {
+  this.setState({
+    counter: this.state.counter + 1,
+  });
+  this.setState({
+    counter: this.state.counter + 1,
+  });
+};
+```
+
+함수형 업데이트로 처리하면 +2 됨.
+
+```js
+handleIncrease = () => {
+  this.setState((state) => ({
+    counter: state.counter + 1,
+  }));
+  this.setState((state) => ({
+    counter: state.counter + 1,
+  }));
+};
+```
+
+업데이트 할 객체를 넣어주는 setState 에서 2씩 더해지지 않는 이유는 setState 를 한다고 해서 상태가 바로 바뀌는게 아니기 때문.
+
+setState 는 단순히 상태를 바꾸는 함수가 아니라 상태로 바꿔달라고 요청해주는 함수로 이해를 해야함.
+
+만약에, 상태가 업데이트 되고 나서 어떤 작업을 하고 싶다면 다음과 같이 setState 의 두번째 파라미터에 콜백함수를 넣어줄 수도 있음.
+
+# LifeCycle Method
+
+## 컴포넌트가 브라우저상에 나타나고, 업데이트되고, 사라지게 될 때 호출되는 메서드들
+
+![lifecycle_methods](./img/lifecycle_methods.png)
+
+> 출처: http://projects.wojtekmaj.pl/react-lifecycle-methods-diagram/
+
+## 마운트
+
+마운트 될 때 발생하는 생명주기들.
+
+- constructor
+- getDerivedStateFromProps
+- render
+- componentDidMount
+
+### constructor
+
+컴포넌트의 생성자 메서드. 컴포넌트가 만들어지면 가장 먼저 실행되는 메서드.
+
+### getDerivedStateFromProps
+
+props 로 받아온 것을 state 에 넣어주고 싶을 때 사용.
+
+앞에 static 을 필요.
+
+this 롤 조회 할 수 없음.
+
+특정 객체를 반환하게 되면 해당 객체 안에 있는 내용들이 컴포넌트의 state 로 설정.
+
+### render
+
+컴포넌트를 렌더링하는 메서드.
+
+### componentDidMount
+
+컴포넌트의 첫번째 렌더링이 마치고 나면 호출되는 메서드.
+
+DOM 을 사용해야하는 외부 라이브러리 연동, ajax 요청, DOM 의 속성을 읽거나 직접 변경하는 작업을 진행.
+
+## 업데이트
+
+컴포넌트가 업데이트 되는 시점에 생명주기들.
+
+- getDerivedStateFromProps
+- shouldComponentUpdate
+- render
+- getSnapshotBeforeUpdate
+- componentDidUpdate
+
+### getDerivedStateFromProps
+
+컴포넌트의 props 나 state 가 바뀌었을때도 이 메서드가 호출.
+
+### shouldComponentUpdate
+
+컴포넌트가 리렌더링 할지 말지를 결정하는 메서드.
+
+주로 최적화 할 때 사용하는 메서드. React.memo와 비슷한 역할.
+
+### render
+
+### getSnapshotBeforeUpdate
+
+컴포넌트에 변화가 일어나기 직전의 DOM 상태를 가져와서 특정 값을 반환하면 그 다음 발생하게 되는 componentDidUpdate 함수에서 받아와서 사용 가능.
+
+DOM 에 변화가 반영되기 직전에 DOM 의 속성을 확인하고 싶을 때 사용.
+
+### componentDidUpdate
+
+리렌더링이 마치고, 화면에 우리가 원하는 변화가 모두 반영되고 난 뒤 호출되는 메서드.
+
+3번째 파라미터로 getSnapshotBeforeUpdate 에서 반환한 값을 조회 할 수 있음.
+
+## 언마운트
+
+컴포넌트가 화면에서 사라지는것을 의미. componentWillUnmount 하나.
+
+### componentWillUnmount
+
+컴포넌트가 화면에서 사라지기 직전에 호출.
+
+주로 DOM에 직접 등록했었던 이벤트를 제거하고, 만약에 setTimeout 을 걸은것이 있다면 clearTimeout 을 통하여 제거.
+
+외부 라이브러리를 사용한게 있고 해당 라이브러리에 dispose 기능이 있다면 여기서 호출.
