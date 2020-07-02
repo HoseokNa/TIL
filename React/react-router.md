@@ -9,6 +9,8 @@
 - [SPA](#SPA)
 - [react-router](#react-router)
 - [파라미터와 쿼리](#파라미터와-쿼리)
+- [서브라우트](#서브라우트)
+- [리액트 라우터 부가기능](#리액트-라우터-부가기능)
 
 # SPA
 
@@ -266,3 +268,122 @@ const About = ({ location }) => {
 
 export default About;
 ```
+
+# 서브라우트
+
+## 라우트 내부의 라우트
+
+컴포넌트를 만들어서 그 안에 또 Route 컴포넌트를 렌더링.
+
+```js
+import React from "react";
+import { Link, Route } from "react-router-dom";
+import Profile from "./Profile";
+
+const Profiles = () => {
+  return (
+    <div>
+      <h3>유저 목록:</h3>
+      <ul>
+        <li>
+          <Link to="/profiles/velopert">velopert</Link>
+        </li>
+        <li>
+          <Link to="/profiles/gildong">gildong</Link>
+        </li>
+      </ul>
+
+      <Route
+        path="/profiles"
+        exact
+        render={() => <div>유저를 선택해주세요.</div>}
+      />
+      <Route path="/profiles/:username" component={Profile} />
+    </div>
+  );
+};
+
+export default Profiles;
+```
+
+첫번째 `Route` 컴포넌트에서 `render` 사용. JSX 를 렌더링하는 것이기에, 상위 영역에서 props 나 기타 값들을 필요하면 전달 해 줄 수 있음.
+
+만약에 특정 라우트 내에 탭 같은것을 만들게 된다면, 단순히 state 로 관리하는 것 보다 서브 라우트로 관리를 하는 것을 권장.
+
+서브 라우트로 관리 했을 때의 장점.
+
+- setState 같은것을 할 필요도 없음.
+- 링크를 통하여 다른 곳에서 쉽게 진입 시킬 수도 있음.
+- 검색엔진 크롤링 까지 고려했을 때 검색엔진 봇이 더욱 다양한 데이터를 수집해 갈 수 있음.
+
+# 리액트 라우터 부가기능
+
+### history
+
+라우트로 사용된 컴포넌트에게 match, location 과 함께 전달되는 props 중 하나.
+
+우리가 컴포넌트 내에 구현하는 메소드에서 라우터에 직접 접근을 할 수 있음. (뒤로가기, 특정 경로로 이동, 이탈 방지 등)
+
+### withRouter
+
+라우트 컴포넌트가 아닌곳에서 match / location / history 를 사용해야 할 때 씀.
+
+자신의 부모 컴포넌트 기준의 match 값이 전달
+
+### Switch
+
+여러 Route 들을 감싸서 그 중 규칙이 일치하는 라우트 단 하나만을 렌더링.
+
+아무것도 일치하지 않았을때 보여줄 Not Found 페이지를 구현 할 수도 있음.
+
+```js
+<Switch>
+  <Route path="/" exact={true} component={Home} />
+  <Route path="/about" component={About} />
+  <Route path="/profiles" component={Profiles} />
+  <Route path="/history" component={HistorySample} />
+  <Route
+    // path 를 따로 정의하지 않으면 모든 상황에 렌더링됨
+    render={({ location }) => (
+      <div>
+        <h2>이 페이지는 존재하지 않습니다:</h2>
+        <p>{location.pathname}</p>
+      </div>
+    )}
+  />
+</Switch>
+```
+
+### NavLink
+
+만약 현재 경로와 Link 에서 사용하는 경로가 일치하는 경우 특정 스타일 혹은 클래스를 적용 할 수 있는 컴포넌트.
+
+```js
+<ul>
+  <li>
+    <NavLink
+      to="/profiles/velopert"
+      activeStyle={{ background: "black", color: "white" }}
+    >
+      velopert
+    </NavLink>
+  </li>
+  <li>
+    <NavLink
+      to="/profiles/gildong"
+      activeStyle={{ background: "black", color: "white" }}
+    >
+      gildong
+    </NavLink>
+  </li>
+</ul>
+```
+
+스타일이 아니라 CSS 클래스를 적용하시고 싶으면 `activeStyle` 대신 `activeClassName` 을 사용.
+
+### 그 외 다른 기능
+
+- Redirect: 페이지를 리디렉트 하는 컴포넌트.
+- Prompt: 이전에 사용했던 history.block 의 컴포넌트 버전.
+- Route Config: JSX 형태로 라우트를 선언하는 것이 아닌 Angular 나 Vue 처럼 배열/객체를 사용하여 라우트 정의하기.
+- Memory Router: 실제로 주소는 존재하지는 않는 라우터. 리액트 네이티브나, 임베디드 웹앱에서 사용하면 유용.
